@@ -73,9 +73,11 @@ SCHEMAS = {
     ),
     "platform_genre_crawls": (
         "CREATE TABLE IF NOT EXISTS 'platform_genre_crawls' ("
+        "  platform INTEGER NOT NULL,"
         "  url STRING NOT NULL,"
         "  final_page_number INTEGER DEFAULT NULL,"
-        "  last_page_scraped INTEGER DEFAULT NULL"
+        "  last_page_scraped INTEGER DEFAULT NULL,"
+        "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
         ");"
     )
 }
@@ -89,7 +91,7 @@ class Interface:
         self.conn = sqlite3.connect(f"{data_path}/MCScraper.sqlite3.db")
         self.c = self.conn.cursor()
 
-    # Utility
+    # Utility, initial table population, etc.
     def make_database(self, data_path):
         self.conn = sqlite3.connect(f"{data_path}/MCScraper.sqlite3.db")
         self.c = self.conn.cursor()
@@ -101,6 +103,19 @@ class Interface:
         for genre in GENRES:
             self.c.execute("INSERT INTO genres (slug) VALUES (?)", (genre,))
         self.conn.commit()
+
+    def get_title_by_genre_crawls_without_final_page(self) -> List:
+        self.c.execute("SELECT url FROM platform_genre_crawls WHERE final_page_numer=NULL")
+        return self.c.fetchall()
+
+    def get_platform_slug(self, platform_pk) -> str:
+        self.c.execute("SELECT slug FROM platforms WHERE rowid=?", (platform_pk,))
+        return self.c.fetchone()
+
+    def get_platform_pk_from_genre_crawl_url(self, url):
+        self.c.execute("SELECT platform FROM platform_genre_crawls WHERE url=?",
+                       (url))
+        return self.c.fetchone()
 
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
@@ -133,6 +148,8 @@ class Interface:
         self.c.execute("INSERT INTO games (title, slug, platform, released) \
                        VALUES (?,?,?,?)",
                        (title, slug, platform_pk, released))
+        self.conn.commit()
+        return self.c.lastrowid
 
     def new_critic_review(self, game_slug, review_id, author, date, grade, body):
         game_pk = self.game_exists(game_slug)
@@ -169,9 +186,9 @@ class Interface:
         self.conn.commit()
 
     # Progress tracking methods - platform genre crawl
-    def new_platform_genre_crawl_url(self, url: str):
-        self.c.execute("INSERT INTO platform_genre_crawls (url) VALUES (?)",
-                       (url,))
+    def new_platform_genre_crawl_url(self, platform_pk, url: str):
+        self.c.execute("INSERT INTO platform_genre_crawls (platform, url) "\
+                       "VALUES (?,?)", (platform_pk, url,))
         self.conn.commit()
 
     def add_final_platform_genre_page_number(self, url, number):
