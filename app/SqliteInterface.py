@@ -142,6 +142,12 @@ class Interface:
         result = self.c.fetchone()
         return result if result else False
 
+    def platform_genre_crawl_url_exists(self, url):
+        self.c.execute("SELECT rowid FROM platform_genre_crawls WHERE url=?",
+                       (url,))    
+        result = self.c.fetchone()
+        return result if result else False
+    
     # Row insertion
     def new_game(self, title, slug, platform_slug, released) -> bool:
         platform_pk = self.platform_exists(platform_slug)
@@ -151,7 +157,7 @@ class Interface:
         self.conn.commit()
         return self.c.lastrowid
 
-    def new_critic_review(self, game_slug, review_id, author, date, grade, body):
+    def new_critic_review(self, game_pk, review_id, author, date, grade, body):
         game_pk = self.game_exists(game_slug)
         self.c.execute("INSERT INTO critic_reviews "
                        "(game, review_id, author, date, grade, body) "
