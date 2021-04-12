@@ -1,6 +1,7 @@
 import os
 from random import choice
 import sqlite3
+from typing import List
 
 
 PLATFORMS = [
