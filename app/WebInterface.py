@@ -28,6 +28,10 @@ class Interface:
         self.update_last_fetch()
         self.log.debug(f"HTTP status code {resp.status_code}")
         if not resp.status_code == 200:
+            if resp.status_code == 504:
+                self.log.debug("504 status encountered. Retrying.")
+                self.throttle()
+                return self.fetch(url)
             return None
         return resp.content.decode()
 
