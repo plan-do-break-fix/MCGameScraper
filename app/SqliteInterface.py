@@ -32,60 +32,55 @@ GENRES = [
     "wargame",
     "wrestling"
 ]
-SCHEMAS = {
-    "platforms": (
-        "CREATE TABLE IF NOT EXISTS 'platforms' ("
-        "  slug TEXT NOT NULL,"
-        "  genre_crawl_complete INTEGER DEFAULT 0"
-        ");"
-    ),
-    "games": (
-        "CREATE TABLE IF NOT EXISTS 'games' ("
-        "  title TEXT NOT NULL,"
-        "  slug TEXT NOT NULL,"
-        "  platform INTEGER NOT NULL,"
-        "  released TEXT NOT NULL,"
-        "  final_user_review_page_number INTEGER DEFAULT NULL,"
-        "  last_user_review_page_scraped INTEGER DEFAULT NULL,"
-        "  final critic_review_page_number INTEGER DEFAULT NULL,"
-        "  last_critic_review_page_scraped INTEGER DEFAULT NULL,"
-        "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
-        ");"
-    ),
-    "critic_reviews": (
-        "CREATE TABLE IF NOT EXISTS 'user_reviews' ("
-        "  game INTEGER NOT NULL,"
-        "  author TEXT NOT NULL,"
-        "  date TEXT NOT NULL,"
-        "  grade INTEGER NOT NULL,"
-        "  body TEXT NOT NULL,"
-        "  FOREIGN KEY (game) REFERENCES games (rowid)"
-        ");"
-    ),
-    "user_reviews": (
-        "CREATE TABLE IF NOT EXISTS 'user_reviews' ("
-        "  game INTEGER NOT NULL,"
-        "  review_id INTEGER NOT NULL,"
-        "  author TEXT NOT NULL,"
-        "  date TEXT NOT NULL,"
-        "  grade INTEGER NOT NULL,"
-        "  body TEXT NOT NULL,"
-        "  votes_total INTEGER NOT NULL,"
-        "  votes_helpful INTEGER NOT NULL,"
-        "  FOREIGN KEY (game) REFERENCES games (rowid)"
-        ");"
-    ),
-    "platform_genre_crawls": (
-        "CREATE TABLE IF NOT EXISTS 'platform_genre_crawls' ("
-        "  platform INTEGER NOT NULL,"
-        "  genre STRING NOT NULL,"
-        "  url STRING DEFAULT NULL,"
-        "  final_page_number INTEGER DEFAULT NULL,"
-        "  last_page_scraped INTEGER DEFAULT NULL,"
-        "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
-        ");"
-    )
-}
+SCHEMAS = [
+    "CREATE TABLE IF NOT EXISTS 'platforms' ("
+    "  slug TEXT NOT NULL,"
+    "  genre_crawl_complete INTEGER DEFAULT 0"
+    ");"
+    ,
+    "CREATE TABLE IF NOT EXISTS 'games' ("
+    "  title TEXT NOT NULL,"
+    "  slug TEXT NOT NULL,"
+    "  platform INTEGER NOT NULL,"
+    "  released TEXT NOT NULL,"
+    "  final_user_review_page_number INTEGER DEFAULT NULL,"
+    "  last_user_review_page_scraped INTEGER DEFAULT NULL,"
+    "  final critic_review_page_number INTEGER DEFAULT NULL,"
+    "  last_critic_review_page_scraped INTEGER DEFAULT NULL,"
+    "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
+    ");"
+    ,
+    "CREATE TABLE IF NOT EXISTS 'critic_reviews' ("
+    "  game INTEGER NOT NULL,"
+    "  author TEXT NOT NULL,"
+    "  date TEXT NOT NULL,"
+    "  grade INTEGER NOT NULL,"
+    "  body TEXT NOT NULL,"
+    "  FOREIGN KEY (game) REFERENCES games (rowid)"
+    ");"
+    ,
+    "CREATE TABLE IF NOT EXISTS 'user_reviews' ("
+    "  game INTEGER NOT NULL,"
+    "  review_id INTEGER NOT NULL,"
+    "  author TEXT NOT NULL,"
+    "  date TEXT NOT NULL,"
+    "  grade INTEGER NOT NULL,"
+    "  body TEXT NOT NULL,"
+    "  votes_total INTEGER NOT NULL,"
+    "  votes_helpful INTEGER NOT NULL,"
+    "  FOREIGN KEY (game) REFERENCES games (rowid)"
+    ");"
+    ,
+    "CREATE TABLE IF NOT EXISTS 'platform_genre_crawls' ("
+    "  platform INTEGER NOT NULL,"
+    "  genre STRING NOT NULL,"
+    "  url STRING DEFAULT NULL,"
+    "  final_page_number INTEGER DEFAULT NULL,"
+    "  last_page_scraped INTEGER DEFAULT NULL,"
+    "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
+    ");"
+] 
+
 
 
 class Interface:
@@ -102,19 +97,20 @@ class Interface:
         self.c = self.conn.cursor()
         for statement in SCHEMAS:
             self.c.execute(statement)
-        for platform in PLATFORMS.keys():
-            self.c.execute("INSERT INTO platforms (name, slug) VALUES (?,?)",
-                      (platform, PLATFORMS["platform"])) 
-        for genre in GENRES:
-            self.c.execute("INSERT INTO genres (slug) VALUES (?)", (genre,))
+        for platform in PLATFORMS:
+            self.c.execute("INSERT INTO platforms (slug) VALUES (?)", (platform,)) 
         self.conn.commit()
 
-    def get_title_by_genre_crawls_without_final_page(self) -> List:
-        self.c.execute("SELECT url FROM platform_genre_crawls WHERE final_page_numer=NULL")
-        return self.c.fetchall()
+    #def get_title_by_genre_crawls_without_final_page(self) -> List:
+    #    self.c.execute("SELECT url FROM platform_genre_crawls WHERE final_page_number IS NULL")
+    #    return [_i[0] for _i in self.c.fetchall()]
 
     def get_platform_slug(self, platform_pk) -> str:
         self.c.execute("SELECT slug FROM platforms WHERE rowid=?", (platform_pk,))
+        return self.c.fetchone()[0]
+
+    def get_game_slug(self, game_pk) -> str:
+        self.c.execute("SELECT slug FROM games WHERE rowid=?", (game_pk,))
         return self.c.fetchone()[0]
 
     def get_platform_pk_from_genre_crawl_url(self, url):
@@ -124,41 +120,52 @@ class Interface:
 
     def get_platforms_without_genre_crawl_urls(self):
         self.c.execute("SELECT slug FROM platforms WHERE genre_crawl_complete=0")
-        return self.c.fetchall()
+        return [_i[0] for _i in self.c.fetchall()]
 
-    def get_remaining_title_crawls(self):
-        self.c.execute("SELECT url, last_page_scraped, final_page_number FROM platform_genre_crawls")
-        crawls = self.c.fetchall()
-        return [_c for _c in crawls if _c[1] != _c[2]]
+    def get_one_incomplete_last_page_crawl(self):
+        self.c.execute("SELECT url FROM platform_genre_crawls "
+                       "WHERE final_page_number IS NULL "
+                       "LIMIT 10")
+        result = self.c.fetchall()
+        if not result:
+            return False
+        return choice(result)[0]
+
+    def get_one_incomplete_title_crawl(self):
+        self.c.execute("SELECT * FROM platform_genre_crawls "
+                       "WHERE last_page_scraped < final_page_number "
+                       "LIMIT 10")
+        result = self.c.fetchall()
+        if not result:
+            return False
+        result = choice(result)
+        return [result[2], int(result[5])+1]
+        
 
     def get_one_incomplete_game_crawl(self):
         self.c.execute("SELECT * FROM games "
-                       "WHERE final_user_review_page_number=NULL"
-                       "OR final_critic_review_page_number=NULL "
-                       "LIMIT=20")
+                       "WHERE final_user_review_page_number IS NULL "
+                       "OR final_critic_review_page_number IS NULL "
+                       "LIMIT 20")
         result = self.c.fetchall()
         if not result:
             self.c.execute("SELECT * FROM games "
-                           "WHERE last_user_review_page_scraped!=final_user_review_page_number"
-                           "OR last_critic_review_page_scraped!=final_critic_review_page_number "
-                           "LIMIT=20")
+                           "WHERE last_user_review_page_scraped < final_user_review_page_number "
+                           "OR last_critic_review_page_scraped < final_critic_review_page_number "
+                           "LIMIT 20")
             result = self.c.fetchall()
             if not result:
                 return False
         result = choice(result)
-        if result[5] > result[6]:
+        if not result[6] or result[6] < result[5]:
             page = 0 if not result[6] else result[6] + 1
-            crawl = []
-            crawl.append("user")
-        elif result[7] > result[8]:
+            review_type = "user"
+        elif not result[8] or result[8] < result[7]:
             page = 0 if not result[8] else result[8] + 1
-            crawl = []
-            crawl.append("critic")
-        
-
-
-
-
+            review_type = "critic"
+        platform_slug = self.get_platform_slug(result[2])
+        game_pk = self.game_exists(result[1])
+        crawl = [game_pk, result[1], platform_slug, result[2], page]
 
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
@@ -196,8 +203,8 @@ class Interface:
         if self.game_exists(slug, platform_slug):
             return False
         platform_pk = self.platform_exists(platform_slug)
-        self.c.execute("INSERT INTO games (title, slug, platform, released) \
-                       VALUES (?,?,?,?)",
+        self.c.execute("INSERT INTO games (title, slug, platform, released) "
+                       "VALUES (?,?,?,?)",
                        (title, slug, platform_pk, released))
         self.conn.commit()
         return self.c.lastrowid
@@ -223,11 +230,11 @@ class Interface:
                        (game_pk, review_id, author, date, grade, body))
         self.conn.commit()
 
-    def new_platform_genre_crawl_url(self, platform_pk, url: str):
+    def new_platform_genre_crawl_url(self, platform_pk, genre, url: str):
         if self.platform_genre_crawl_url_exists(url):
             return False
-        self.c.execute("INSERT INTO platform_genre_crawls (platform, url) "\
-                       "VALUES (?,?)", (platform_pk, url,))
+        self.c.execute("INSERT INTO platform_genre_crawls (platform, genre, url) "
+                       "VALUES (?,?,?)", (platform_pk, genre, url))
         self.conn.commit()
 
     # Progress tracking methods - final_page_number and last_page_scraped
