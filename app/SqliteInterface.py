@@ -42,9 +42,10 @@ SCHEMAS = [
     "  slug TEXT NOT NULL,"
     "  platform INTEGER NOT NULL,"
     "  released TEXT NOT NULL,"
+    "  metascore INTEGER DEFAULT NULL,"
     "  final_user_review_page_number INTEGER DEFAULT NULL,"
     "  last_user_review_page_scraped INTEGER DEFAULT NULL,"
-    "  final critic_review_page_number INTEGER DEFAULT NULL,"
+    "  final_critic_review_page_number INTEGER DEFAULT NULL,"
     "  last_critic_review_page_scraped INTEGER DEFAULT NULL,"
     "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
     ");"
@@ -114,7 +115,7 @@ class Interface:
 
     def get_platform_pk_from_genre_crawl_url(self, url):
         self.c.execute("SELECT platform FROM platform_genre_crawls WHERE url=?",
-                       (url))
+                       (url,))
         return self.c.fetchone()[0]
 
     def get_platforms_without_genre_crawl_urls(self):
@@ -139,7 +140,7 @@ class Interface:
         if not result:
             return False
         result = choice(result)
-        page = 0 if not result[4] else result[4] + 1
+        page = 0 if result[4] == None else result[4] + 1
         return [result[2], page]
 
     def get_one_incomplete_game_crawl(self):
@@ -154,14 +155,16 @@ class Interface:
             return False
         result = choice(result)
         if not result[6] or result[6] < result[5]:
-            page = 0 if not result[6] else result[6] + 1
+            page = 0 if result[6] == None else result[6] + 1
             review_type = "user"
         elif not result[8] or result[8] < result[7]:
-            page = 0 if not result[8] else result[8] + 1
+            page = 0 if result[8] == None else result[8] + 1
             review_type = "critic"
         platform_slug = self.get_platform_slug(result[2])
         game_pk = self.game_exists(result[1])
         crawl = [game_pk, result[1], platform_slug, result[2], page, review_type]
+
+    def get_one_game_without_last_page(self):
 
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
@@ -169,8 +172,7 @@ class Interface:
         result = self.c.fetchone()
         return result[0] if result else False
 
-    def game_exists(self, slug, platform):
-        platform_pk = self.platform_exists(platform)
+    def game_exists(self, slug, platform_pk):
         self.c.execute("SELECT rowid FROM games WHERE slug=? AND platform=?",
                        (slug, platform_pk))
         result = self.c.fetchone()
@@ -195,13 +197,12 @@ class Interface:
         return result[0] if result else False
     
     # Row insertion
-    def new_game(self, title, slug, platform_slug, released) -> bool:
-        if self.game_exists(slug, platform_slug):
+    def new_game(self, title, slug, platform, released, metascore) -> bool:
+        if self.game_exists(slug, platform):
             return False
-        platform_pk = self.platform_exists(platform_slug)
-        self.c.execute("INSERT INTO games (title, slug, platform, released) "
-                       "VALUES (?,?,?,?)",
-                       (title, slug, platform_pk, released))
+        self.c.execute("INSERT INTO games (title, slug, platform, released, metascore) "
+                       "VALUES (?,?,?,?,?)",
+                       (title, slug, platform, released, metascore))
         self.conn.commit()
         return self.c.lastrowid
 
@@ -215,15 +216,14 @@ class Interface:
                        (game_pk, review_id, author, date, grade, body))
         self.conn.commit()
 
-    def new_user_review(self, game_slug, review_id, author, date, grade, body,
+    def new_user_review(self, game_pk, review_id, author, date, grade, body,
                               votes_total, votes_helpful):
         if self.user_review_exists(review_id):
             return False
-        game_pk = self.game_exists(game_slug)
         self.c.execute("INSERT INTO critic_reviews "
-                       "(game, review_id, author, date, grade, body) "
+                       "(game, review_id, author, date, grade, body, votes_total) "
                        "VALUES (?,?,?,?,?,?)",
-                       (game_pk, review_id, author, date, grade, body))
+                       (game_pk, review_id, author, date, grade, body, votes_total, votes_helpful))
         self.conn.commit()
 
     def new_platform_genre_crawl_url(self, platform_pk, genre, url: str):
