@@ -3,10 +3,12 @@ from typing import List
 from bs4 import BeautifulSoup
 
 
+BASE_URL = "https://www.metacritic.com"
+
 # Methods for listing pages (pages using "flipper" divs for next/prev page)
 def get_title_by_genre_listing_page_urls(soup: BeautifulSoup) -> List[str]:
-    listings = soup.find("ul", {"class": "genre_nav"}).findall("a")
-    return [listing.attrs["href"] for listing in listings]
+    listings = soup.find("ul", {"class": "genre_nav"}).find_all("a")
+    return [f"{BASE_URL}{listing.attrs['href']}" for listing in listings]
 
 
 def get_last_page_number(listing_page: BeautifulSoup) -> str(int):
