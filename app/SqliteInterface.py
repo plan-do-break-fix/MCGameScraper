@@ -34,8 +34,7 @@ GENRES = [
 ]
 SCHEMAS = [
     "CREATE TABLE IF NOT EXISTS 'platforms' ("
-    "  slug TEXT NOT NULL,"
-    "  genre_crawl_complete INTEGER DEFAULT 0"
+    "  slug TEXT NOT NULL"
     ");"
     ,
     "CREATE TABLE IF NOT EXISTS 'games' ("
@@ -133,29 +132,26 @@ class Interface:
 
     def get_one_incomplete_title_crawl(self):
         self.c.execute("SELECT * FROM platform_genre_crawls "
-                       "WHERE last_page_scraped < final_page_number "
+                       "WHERE last_page_scraped IS NULL "
+                       "OR last_page_scraped < final_page_number "
                        "LIMIT 10")
         result = self.c.fetchall()
         if not result:
             return False
         result = choice(result)
-        return [result[2], int(result[5])+1]
-        
+        page = 0 if not result[4] else result[4] + 1
+        return [result[2], page]
 
     def get_one_incomplete_game_crawl(self):
         self.c.execute("SELECT * FROM games "
                        "WHERE final_user_review_page_number IS NULL "
                        "OR final_critic_review_page_number IS NULL "
+                       "OR last_user_review_page_scraped < final_user_review_page_number "
+                       "OR last_critic_review_page_scraped < final_critic_review_page_number "
                        "LIMIT 20")
         result = self.c.fetchall()
         if not result:
-            self.c.execute("SELECT * FROM games "
-                           "WHERE last_user_review_page_scraped < final_user_review_page_number "
-                           "OR last_critic_review_page_scraped < final_critic_review_page_number "
-                           "LIMIT 20")
-            result = self.c.fetchall()
-            if not result:
-                return False
+            return False
         result = choice(result)
         if not result[6] or result[6] < result[5]:
             page = 0 if not result[6] else result[6] + 1
@@ -165,7 +161,7 @@ class Interface:
             review_type = "critic"
         platform_slug = self.get_platform_slug(result[2])
         game_pk = self.game_exists(result[1])
-        crawl = [game_pk, result[1], platform_slug, result[2], page]
+        crawl = [game_pk, result[1], platform_slug, result[2], page, review_type]
 
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
