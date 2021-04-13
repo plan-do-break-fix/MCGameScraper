@@ -34,7 +34,8 @@ GENRES = [
 ]
 SCHEMAS = [
     "CREATE TABLE IF NOT EXISTS 'platforms' ("
-    "  slug TEXT NOT NULL"
+    "  slug TEXT NOT NULL,"
+    "  genre_crawl_complete INTEGER DEFAULT 0"
     ");"
     ,
     "CREATE TABLE IF NOT EXISTS 'games' ("
@@ -232,6 +233,11 @@ class Interface:
         self.conn.commit()
 
     # Progress tracking methods - final_page_number and last_page_scraped
+    def update_genre_crawl_complete(self, platform_slug):
+        self.c.execute("UPDATE platforms SET genre_crawl_complete=1 "
+                       "WHERE slug=?", (platform_slug,))
+        self.conn.commit()
+    
     def add_final_review_page_number(self, game_pk, review_type: str, number: int):
         if review_type not in ["critic", "user"]:
             raise RuntimeError

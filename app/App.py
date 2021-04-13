@@ -69,6 +69,8 @@ class App:
                     genre = url.split("/")[-2]
                     self.db.new_platform_genre_crawl_url(slug, genre, url)
                     self.log.debug("New titles-by-genre listing page URL recorded.")
+            self.log.debug(f"Completed scraping titles-by-genre listing pages for {slug}.")
+            self.db.update_genre_crawl_complete(slug)
         return True
 
     def populate_titles_by_genre_final_page_number(self, url) -> bool:
