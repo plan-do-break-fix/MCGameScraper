@@ -4,12 +4,12 @@ from bs4 import BeautifulSoup
 
 
 # Methods for listing pages (pages using "flipper" divs for next/prev page)
-def get_title_by_genre_listing_page_urls(self, soup: BeautifulSoup) -> List[str]:
+def get_title_by_genre_listing_page_urls(soup: BeautifulSoup) -> List[str]:
     listings = soup.find("ul", {"class": "genre_nav"}).findall("a")
     return [listing.attrs["href"] for listing in listings]
 
 
-def get_last_page_number(self, listing_page: BeautifulSoup) -> str(int):
+def get_last_page_number(listing_page: BeautifulSoup) -> str(int):
     last_page_tag = listing_page.find("li", {"class": "last_page"})
     if not last_page_tag:
         return 0
@@ -17,7 +17,7 @@ def get_last_page_number(self, listing_page: BeautifulSoup) -> str(int):
 
 
 # Scraping methods
-def scrape_games(self, title_by_genre_listing_page: BeautifulSoup) -> List:
+def scrape_games(title_by_genre_listing_page: BeautifulSoup) -> List:
     games = []
     soup = title_by_genre_listing_page
     for game_tag in soup.find_all("td", {"class": "clamp-summary-wrap"}):
@@ -32,7 +32,7 @@ def scrape_games(self, title_by_genre_listing_page: BeautifulSoup) -> List:
     return games
 
 
-def scrape_user_reviews(self, user_review_listing_page: BeautifulSoup) -> List:
+def scrape_user_reviews(user_review_listing_page: BeautifulSoup) -> List:
     reviews = []
     for rev_tag in soup.find_all("li", {"class": "user_review"}):
         review = {
