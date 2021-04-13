@@ -164,8 +164,6 @@ class Interface:
         game_pk = self.game_exists(result[1])
         crawl = [game_pk, result[1], platform_slug, result[2], page, review_type]
 
-    def get_one_game_without_last_page(self):
-
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
         self.execute("SELECT rowid FROM platforms WHERE slug=?", (slug,))
