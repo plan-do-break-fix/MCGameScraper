@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from bs4 import BeautifulSoup
@@ -24,7 +25,7 @@ def scrape_games(title_by_genre_listing_page: BeautifulSoup) -> List:
     soup = title_by_genre_listing_page
     for game_tag in soup.find_all("td", {"class": "clamp-summary-wrap"}):
         games.append({
-            "name": game_tag.find("h3").text,
+            "title": game_tag.find("h3").text,
             "slug": game_tag.find("a", {"class": "title"})\
                                     .attrs["href"].split("/")[-1],
             "released": game_tag.find("div", {"class": "clamp-details"})\
@@ -36,12 +37,15 @@ def scrape_games(title_by_genre_listing_page: BeautifulSoup) -> List:
 
 def scrape_user_reviews(user_review_listing_page: BeautifulSoup) -> List:
     reviews = []
+    soup = user_review_listing_page
     for rev_tag in soup.find_all("li", {"class": "user_review"}):
         review = {
             "review_id": int(rev_tag["id"].split("_")[-1]),
             "author": rev_tag.find("div", {"class": "name"}).text.strip(),
             "date": rev_tag.find("div", {"class": "date"}).text,
-            "grade": int(rev_tag.find("div", {"class": "metascore_w"}).text)
+            "grade": int(rev_tag.find("div", {"class": "metascore_w"}).text),
+            "votes_total": int(rev_tag.find("span", {"class": "total_ups"})),
+            "votes_helpful": int(rev_tag.find("span", {"class": "total_thumbs"}))
         }
         body_tag = rev_tag.find("div", {"class": "review_body"})
         if body_tag.find("blurb_expanded"):     # longer reviews
@@ -53,3 +57,17 @@ def scrape_user_reviews(user_review_listing_page: BeautifulSoup) -> List:
         reviews.append(review)
     return reviews
 
+
+def scrape_critic_review(critic_review_listing_page: BeautifulSoup) -> List:
+    reviews = []
+    soup = critic_review_listing_page
+    for rev_tag in soup.find_all("li", {"class": "review_content"}):
+        review = {
+            "author": rev_tag.find("div", {"class": "source"}).text,
+            "date": rev_tag.find("div", {"class": "date"}).text,
+            "body": rev_tag.find("div", {"class": "review_body"}).text.strip()
+        }
+        grade = rev_tag.find("div", {"class": "metascore_w"})
+        review["grade"] = None if not grade else int(grade.text)
+        reviews.append(review)
+    return reviews
