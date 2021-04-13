@@ -26,7 +26,7 @@ class Interface:
         self.update_last_fetch()
         if not resp.status_code == 200:
             return None
-        return resp.content
+        return resp.content.decode()
 
     def throttle(self) -> None:
         """Restrict HTTP GETs to no more than once per throttle_seconds."""
