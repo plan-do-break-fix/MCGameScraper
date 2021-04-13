@@ -161,9 +161,9 @@ class Interface:
         elif not result[8] or result[8] < result[7]:
             page = 0 if result[8] == None else result[8] + 1
             review_type = "critic"
-        platform_slug = self.get_platform_slug(result[2])
         game_pk = self.game_exists(result[1])
-        crawl = [game_pk, result[1], platform_slug, result[2], page, review_type]
+        platform_pk = self.platform_exists(result[2])
+        crawl = [game_pk, result[1], result[2], page, review_type]
 
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
