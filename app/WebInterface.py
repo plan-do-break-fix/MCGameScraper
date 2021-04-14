@@ -1,4 +1,5 @@
 from datetime import datetime
+from random import randint
 import requests
 from time import sleep
 
@@ -40,7 +41,13 @@ class Interface:
         self.log.debug("Throttling...")
         delta = int(datetime.now().timestamp()) - self.last_fetch
         if delta < self.throttle_seconds:
+            interval = self.additive_fuzz(self.throttle_seconds, 0, 3)
             sleep(int(self.throttle_seconds - delta))
+
+    def additive_fuzz(self, value: int, min: int, max: int) -> float:
+        fuzz = randint(min*1000,max*1000)/1000
+        return value + fuzz
+
 
     def update_last_fetch(self) -> None:
         self.last_fetch = int(datetime.now().timestamp())
