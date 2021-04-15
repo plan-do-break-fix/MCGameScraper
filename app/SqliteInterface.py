@@ -6,11 +6,14 @@ from typing import List
 
 PLATFORMS = [
     "pc",
+    "playstation-2",
+    "playstation-3",
     "playstation-4",
     "playstation-5",
     "switch",
-    "wii-u",
-    "xbox-one"
+    "xbox-360",
+    "xbox-one",
+    "wii-u"
 ]
 GENRES = [
     "action",
@@ -55,7 +58,7 @@ SCHEMAS = [
     "  game INTEGER NOT NULL,"
     "  author TEXT NOT NULL,"
     "  date TEXT NOT NULL,"
-    "  grade INTEGER NOT NULL,"
+    "  grade INTEGER DEFAULT NULL,"
     "  body TEXT NOT NULL,"
     "  FOREIGN KEY (game) REFERENCES games (rowid)"
     ");"
@@ -65,7 +68,7 @@ SCHEMAS = [
     "  review_id INTEGER NOT NULL,"
     "  author TEXT NOT NULL,"
     "  date TEXT NOT NULL,"
-    "  grade INTEGER NOT NULL,"
+    "  grade INTEGER DEFAULT NULL,"
     "  body TEXT NOT NULL,"
     "  votes_total INTEGER NOT NULL,"
     "  votes_helpful INTEGER NOT NULL,"
@@ -115,8 +118,10 @@ class Interface:
         return self.c.fetchone()[0]
 
     def get_platform_pk_from_genre_crawl_url(self, url):
-        self.c.execute("SELECT platform FROM platform_genre_crawls WHERE url=?",
+        self.c.execute("SELECT slug FROM platform_genre_crawls WHERE url=?",
                        (url,))
+        platform_slug = self.c.fetchone()[0]
+        self.c.execute("SELECT rowid FROM platforms WHERE slug=?", (slug,)
         return self.c.fetchone()[0]
 
     def get_platforms_without_genre_crawl_urls(self):
@@ -161,13 +166,14 @@ class Interface:
         elif not result[8] or result[8] < result[7]:
             page = 0 if result[8] == None else result[8] + 1
             review_type = "critic"
-        game_pk = self.game_exists(result[1])
-        platform_pk = self.platform_exists(result[2])
-        crawl = [game_pk, result[1], result[2], page, review_type]
+        platform_slug = self.get_platform_slug(result[2])
+        game_pk = self.game_exists(result[1], result[2])
+        crawl = [game_pk, result[1], result[2], platform_slug, page, review_type]
+        return crawl
 
     # Existence checks - return rowid if exists else False
     def platform_exists(self, slug: str):
-        self.execute("SELECT rowid FROM platforms WHERE slug=?", (slug,))
+        self.c.execute("SELECT rowid FROM platforms WHERE slug=?", (slug,))
         result = self.c.fetchone()
         return result[0] if result else False
 
@@ -219,9 +225,9 @@ class Interface:
                               votes_total, votes_helpful):
         if self.user_review_exists(review_id):
             return False
-        self.c.execute("INSERT INTO critic_reviews "
-                       "(game, review_id, author, date, grade, body, votes_total) "
-                       "VALUES (?,?,?,?,?,?)",
+        self.c.execute("INSERT INTO user_reviews "
+                       "(game, review_id, author, date, grade, body, votes_total, votes_helpful) "
+                       "VALUES (?,?,?,?,?,?,?,?)",
                        (game_pk, review_id, author, date, grade, body, votes_total, votes_helpful))
         self.conn.commit()
 
@@ -241,17 +247,17 @@ class Interface:
     def add_final_review_page_number(self, game_pk, review_type: str, number: int):
         if review_type not in ["critic", "user"]:
             raise RuntimeError
-        self.c.execute(f"UPDATE games "
-                        "SET final_{review_type}_review_page_number=? "
-                        "WHERE rowid=?", (number))
+        self.c.execute("UPDATE games "
+                       f"SET final_{review_type}_review_page_number=? "
+                       "WHERE rowid=?", (number, game_pk))
         self.conn.commit()
 
     def update_last_review_page_scraped(self, game_pk, review_type: str, number: int):
         if review_type not in ["critic", "user"]:
             raise RuntimeError
-        self.c.execute(f"UPDATE games "
-                        "SET last_{review_type}_review_page_scraped=? "
-                        "WHERE rowid=?", (number))
+        self.c.execute("UPDATE games "
+                       f"SET last_{review_type}_review_page_scraped=? "
+                       "WHERE rowid=?", (number, game_pk))
         self.conn.commit()
 
     def add_final_platform_genre_page_number(self, url, number):
