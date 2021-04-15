@@ -66,7 +66,7 @@ SCHEMAS = [
     "CREATE TABLE IF NOT EXISTS 'critic_reviews' ("
     "  game INTEGER NOT NULL,"
     "  author TEXT NOT NULL,"
-    "  date TEXT NOT NULL,"
+    "  date TEXT DEFAULT NULL,"
     "  grade INTEGER DEFAULT NULL,"
     "  body TEXT NOT NULL,"
     "  FOREIGN KEY (game) REFERENCES games (rowid)"
@@ -240,14 +240,14 @@ class Interface:
         self.c.execute("INSERT INTO games_to_genres (game, genre) VALUES (?,?)",
                        (game_pk, genre_pk))
 
-    def new_critic_review(self, game_pk, review_id, author, date, grade, body):
+    def new_critic_review(self, game_pk, author, date, grade, body):
         if self.critic_review_exists(author, date):
             return False
         game_pk = self.game_exists(game_slug)
         self.c.execute("INSERT INTO critic_reviews "
-                       "(game, review_id, author, date, grade, body) "
+                       "(game, author, date, grade, body) "
                        "VALUES (?,?,?,?,?,?)",
-                       (game_pk, review_id, author, date, grade, body))
+                       (game_pk, author, date, grade, body))
         self.conn.commit()
 
     def new_user_review(self, game_pk, review_id, author, date, grade, body,
