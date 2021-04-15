@@ -27,6 +27,9 @@ class Interface:
         self.log.debug(f"Attempting to fetch {url}.")
         resp = requests.get(url, headers=HEADERS[0])
         self.update_last_fetch()
+        if resp.url != url:
+            self.log.critical("Data label integrity threatened by unexpected redirection detected. Aborting.")
+            raise RuntimeError
         self.log.debug(f"HTTP status code {resp.status_code}")
         if not resp.status_code == 200:
             if resp.status_code == 504:
@@ -47,7 +50,6 @@ class Interface:
     def additive_fuzz(self, value: int, min: int, max: int) -> float:
         fuzz = randint(min*1000,max*1000)/1000
         return value + fuzz
-
 
     def update_last_fetch(self) -> None:
         self.last_fetch = int(datetime.now().timestamp())
