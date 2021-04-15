@@ -44,24 +44,24 @@ def scrape_user_reviews(user_review_listing_page: BeautifulSoup) -> List:
             "author": rev_tag.find("div", {"class": "name"}).text.strip(),
             "date": rev_tag.find("div", {"class": "date"}).text,
             "grade": int(rev_tag.find("div", {"class": "metascore_w"}).text),
-            "votes_total": int(rev_tag.find("span", {"class": "total_ups"})),
-            "votes_helpful": int(rev_tag.find("span", {"class": "total_thumbs"}))
+            "votes_total": int(rev_tag.find("span", {"class": "total_thumbs"}).text),
+            "votes_helpful": int(rev_tag.find("span", {"class": "total_ups"}).text)
         }
         body_tag = rev_tag.find("div", {"class": "review_body"})
-        if body_tag.find("blurb_expanded"):     # longer reviews
-            body = body_tag.find("blurb_expanded").text
+        if body_tag.find("span", {"class": "blurb_expanded"}):     # longer reviews
+            body = body_tag.find("span", {"class": "blurb_expanded"})
         else:                                   # short reviews
-            body = body_tag.find("span").text
-        body = body.replace("\r", " ").replace("\n", " ")
+            body = body_tag.find("span")
+        body = body.text.strip().replace("\r", " ").replace("\n", " ")
         review["body"] = re.sub(" +", " ", body)
         reviews.append(review)
     return reviews
 
 
-def scrape_critic_review(critic_review_listing_page: BeautifulSoup) -> List:
+def scrape_critic_reviews(critic_review_listing_page: BeautifulSoup) -> List:
     reviews = []
     soup = critic_review_listing_page
-    for rev_tag in soup.find_all("li", {"class": "review_content"}):
+    for rev_tag in soup.find_all("li", {"class": "critic_review"}):
         review = {
             "author": rev_tag.find("div", {"class": "source"}).text,
             "date": rev_tag.find("div", {"class": "date"}).text,
