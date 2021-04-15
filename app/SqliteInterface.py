@@ -41,6 +41,10 @@ SCHEMAS = [
     "  genre_crawl_complete INTEGER DEFAULT 0"
     ");"
     ,
+    "CREATE TABLE IF NOT EXISTS 'genres' ("
+    "  slug TEXT NOT NULL"
+    ");"
+    ,
     "CREATE TABLE IF NOT EXISTS 'games' ("
     "  title TEXT NOT NULL,"
     "  slug TEXT NOT NULL,"
@@ -52,6 +56,11 @@ SCHEMAS = [
     "  final_critic_review_page_number INTEGER DEFAULT NULL,"
     "  last_critic_review_page_scraped INTEGER DEFAULT NULL,"
     "  FOREIGN KEY (platform) REFERENCES platforms (rowid)"
+    ");"
+    ,
+    "CREATE TABLE IF NOT EXISTS 'games_to_genres' ("
+    "  game INTEGER NOT NULL,"
+    "  genre INTEGER NOT NULL"
     ");"
     ,
     "CREATE TABLE IF NOT EXISTS 'critic_reviews' ("
@@ -77,7 +86,7 @@ SCHEMAS = [
     ,
     "CREATE TABLE IF NOT EXISTS 'platform_genre_crawls' ("
     "  platform INTEGER NOT NULL,"
-    "  genre STRING NOT NULL,"
+    "  genre INTEGER NOT NULL,"
     "  url STRING DEFAULT NULL,"
     "  final_page_number INTEGER DEFAULT NULL,"
     "  last_page_scraped INTEGER DEFAULT NULL,"
@@ -103,6 +112,8 @@ class Interface:
             self.c.execute(statement)
         for platform in PLATFORMS:
             self.c.execute("INSERT INTO platforms (slug) VALUES (?)", (platform,)) 
+        for genre in GENRES:
+            self.c.execute("INSERT INTO genres (slug) VALUES (?)", (genre,))
         self.conn.commit()
 
     #def get_title_by_genre_crawls_without_final_page(self) -> List:
@@ -118,10 +129,13 @@ class Interface:
         return self.c.fetchone()[0]
 
     def get_platform_pk_from_genre_crawl_url(self, url):
-        self.c.execute("SELECT slug FROM platform_genre_crawls WHERE url=?",
+        self.c.execute("SELECT platform FROM platform_genre_crawls WHERE url=?",
                        (url,))
-        platform_slug = self.c.fetchone()[0]
-        self.c.execute("SELECT rowid FROM platforms WHERE slug=?", (slug,)
+        return self.c.fetchone()[0]
+    
+    def get_genre_pk_from_genre_crawl_url(self, url):
+        self.c.execute("SELECT genre FROM platform_genre_crawls WHERE url=?",
+                       (url,))
         return self.c.fetchone()[0]
 
     def get_platforms_without_genre_crawl_urls(self):
@@ -177,11 +191,20 @@ class Interface:
         result = self.c.fetchone()
         return result[0] if result else False
 
+    def genre_exists(self, slug: str):
+        self.c.execute("SELECT rowid FROM genres WHERE slug=?", (slug,))
+        result = self.c.fetchone()
+        return result[0] if result else False
+
     def game_exists(self, slug, platform_pk):
         self.c.execute("SELECT rowid FROM games WHERE slug=? AND platform=?",
                        (slug, platform_pk))
         result = self.c.fetchone()
         return result[0] if result else False
+
+    def game_genre_association_exists(self, game_pk, genre_pk):
+        self.c.execute("SELECT rowid FROM games_to_genres WHERE game=? AND genre=?",
+                       (game_pk, genre_pk))
 
     def user_review_exists(self, review_id: str):
         self.c.execute("SELECT rowid FROM user_reviews WHERE review_id=?",
@@ -211,6 +234,12 @@ class Interface:
         self.conn.commit()
         return self.c.lastrowid
 
+    def new_game_genre_association(self, game_pk, genre_pk):
+        if self.game_genre_association_exists(game_pk, genre_pk):
+            return False
+        self.c.execute("INSERT INTO games_to_genres (game, genre) VALUES (?,?)",
+                       (game_pk, genre_pk))
+
     def new_critic_review(self, game_pk, review_id, author, date, grade, body):
         if self.critic_review_exists(author, date):
             return False
@@ -231,11 +260,11 @@ class Interface:
                        (game_pk, review_id, author, date, grade, body, votes_total, votes_helpful))
         self.conn.commit()
 
-    def new_platform_genre_crawl_url(self, platform_pk, genre, url: str):
+    def new_platform_genre_crawl_url(self, platform_pk, genre_pk, url: str):
         if self.platform_genre_crawl_url_exists(url):
             return False
         self.c.execute("INSERT INTO platform_genre_crawls (platform, genre, url) "
-                       "VALUES (?,?,?)", (platform_pk, genre, url))
+                       "VALUES (?,?,?)", (platform_pk, genre_pk, url))
         self.conn.commit()
 
     # Progress tracking methods - final_page_number and last_page_scraped
