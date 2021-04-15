@@ -36,7 +36,6 @@ class App:
             final_page_crawl = self.db.get_one_incomplete_last_page_crawl()
             if not final_page_crawl:
                 run = False
-
             else:
                 self.populate_titles_by_genre_final_page_number(final_page_crawl)
         self.log.debug("All title-by-genre listing page final page numbers recorded.")
@@ -47,15 +46,16 @@ class App:
                 run = False
             else:
                 self.populate_games(*title_crawl)
+        run = True
         while run:
             game_crawl = self.db.get_one_incomplete_game_crawl()
             if not game_crawl:
                 return True
             crawl_type = game_crawl.pop()
             if crawl_type == "user":
-                self.scrape_user_reviews(*crawl)
+                self.scrape_user_reviews(*game_crawl)
             elif crawl_type == "critic":
-                self.scrape_critic_reviews(*crawl)
+                self.scrape_critic_reviews(*game_crawl)
 
     # Main function methods
     def populate_title_by_genre_urls_to_crawl(self) -> bool:
@@ -66,8 +66,9 @@ class App:
             soup = BeautifulSoup(html, features="html5lib")
             for url in parse.get_title_by_genre_listing_page_urls(soup):
                 if not self.db.platform_genre_crawl_url_exists(url):
-                    genre = url.split("/")[-2]
-                    self.db.new_platform_genre_crawl_url(slug, genre, url)
+                    platform_pk = self.db.platform_exists(slug)
+                    genre_pk = self.db.genre_exists(url.split("/")[-2])
+                    self.db.new_platform_genre_crawl_url(platform_pk, genre_pk, url)
                     self.log.debug("New titles-by-genre listing page URL recorded.")
             self.log.debug(f"Completed scraping titles-by-genre listing pages for {slug}.")
             self.db.update_genre_crawl_complete(slug)
@@ -85,6 +86,7 @@ class App:
     def populate_games(self, url, page) -> bool:
         self.log.info("Scraping games from title-by-genre listing page.")
         platform_pk = self.db.get_platform_pk_from_genre_crawl_url(url)
+        genre_pk = self.db.get_genre_pk_from_genre_crawl_url(url)
         url_pg = f"{url}?page={page}"
         html = self.web.fetch(url_pg)
         soup = BeautifulSoup(html, features="html5lib")
@@ -92,6 +94,7 @@ class App:
             game["platform"] = platform_pk
             game_pk = self.db.new_game(**game)
             self.log.debug(f"{game['title']} added to games.")
+            self.db.new_game_genre_association(game_pk, genre_pk)
         self.db.update_last_platform_genre_page_scraped(url, page)
         self.log.debug("All games scraped from page.")
         return True
@@ -113,8 +116,8 @@ class App:
             return True
 
     def scrape_critic_reviews(self, game_pk, game_slug, platform_pk, platform_slug, page_number) -> bool:
-            self.log.info(f"Scraping reviews from {url}.")
             url = self.review_page_url("critic", game_slug, platform_slug, page_number)
+            self.log.info(f"Scraping reviews from {url}.")
             html = self.web.fetch(url)
             soup = BeautifulSoup(html, features="html5lib")
             if page_number == 0:  # final page number is Null
