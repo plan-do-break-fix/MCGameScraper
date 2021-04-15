@@ -64,10 +64,12 @@ def scrape_critic_reviews(critic_review_listing_page: BeautifulSoup) -> List:
     for rev_tag in soup.find_all("li", {"class": "critic_review"}):
         review = {
             "author": rev_tag.find("div", {"class": "source"}).text,
-            "date": rev_tag.find("div", {"class": "date"}).text,
             "body": rev_tag.find("div", {"class": "review_body"}).text.strip()
         }
         grade = rev_tag.find("div", {"class": "metascore_w"})
         review["grade"] = None if not grade else int(grade.text)
+        date = rev_tag.find("div", {"class": "date"})
+        review["date"] = None if not date else date.text
+
         reviews.append(review)
     return reviews
