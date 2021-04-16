@@ -243,10 +243,9 @@ class Interface:
     def new_critic_review(self, game_pk, author, date, grade, body):
         if self.critic_review_exists(author, date):
             return False
-        game_pk = self.game_exists(game_slug)
         self.c.execute("INSERT INTO critic_reviews "
                        "(game, author, date, grade, body) "
-                       "VALUES (?,?,?,?,?,?)",
+                       "VALUES (?,?,?,?,?)",
                        (game_pk, author, date, grade, body))
         self.conn.commit()
 
