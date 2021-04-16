@@ -52,7 +52,7 @@ def scrape_user_reviews(user_review_listing_page: BeautifulSoup) -> List:
             body = body_tag.find("span", {"class": "blurb_expanded"})
         else:                                   # short reviews
             body = body_tag.find("span")
-        body = body.text.strip().replace("\r", " ").replace("\n", " ")
+        body = "" if body == None else body.text.strip().replace("\r", " ").replace("\n", " ")
         review["body"] = re.sub(" +", " ", body)
         reviews.append(review)
     return reviews
@@ -67,9 +67,8 @@ def scrape_critic_reviews(critic_review_listing_page: BeautifulSoup) -> List:
             "body": rev_tag.find("div", {"class": "review_body"}).text.strip()
         }
         grade = rev_tag.find("div", {"class": "metascore_w"})
-        review["grade"] = None if not grade else int(grade.text)
+        review["grade"] = None if not grade or not grade.text else grade.text
         date = rev_tag.find("div", {"class": "date"})
-        review["date"] = None if not date else date.text
-
+        review["date"] = None if not date or not date.text else date.text
         reviews.append(review)
     return reviews
